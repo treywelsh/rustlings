@@ -28,13 +28,34 @@ pub enum Command {
 
 mod my_module {
     use super::Command;
+    use std::borrow::Cow;
 
     // TODO: Complete the function signature!
-    pub fn transformer(input: ???) -> ??? {
+    pub fn transformer<'a>(input: Vec<(&'a String, &Command)>) -> Vec<Cow<'a, str>> {
         // TODO: Complete the output declaration!
-        let mut output: ??? = vec![];
-        for (string, command) in input.iter() {
+        let mut output: Vec<Cow<'a, str>> = vec![];
+        for (string, command) in input.into_iter() {
             // TODO: Complete the function body. You can do it!
+            match *command {
+                Command::Uppercase => {
+                    // to_uppercase method returns a new string. Could we avoid this allocation ?
+                    // Maybe with [make_ascii_uppercase](https://doc.rust-lang.org/std/primitive.str.html#method.make_ascii_uppercase)
+                    // but we should modify transformer signature to borrow mutable the string
+                    output.push(string.to_uppercase().into());
+                }
+                Command::Trim => {
+                    output.push(string.trim().into());
+                }
+                Command::Append(count) => {
+                    //Could we avoid this allocation ?
+                    // Maybe, but we should modify transformer signature to borrow mutable the string
+                    let mut new_string = String::from(string);
+                    for _ in 1..=count {
+                        new_string.push_str("bar");
+                    }
+                    output.push(new_string.into());
+                }
+            };
         }
         output
     }
@@ -42,21 +63,52 @@ mod my_module {
 
 #[cfg(test)]
 mod tests {
-    // TODO: What do we need to import to have `transformer` in scope?
-    use ???;
+    // TODO: What do we have to import to have `transformer` in scope?
+    use my_module::transformer;
+
     use super::Command;
 
     #[test]
     fn it_works() {
-        let output = transformer(vec![
+        let in_owned = vec![
             ("hello".into(), Command::Uppercase),
             (" all roads lead to rome! ".into(), Command::Trim),
             ("foo".into(), Command::Append(1)),
             ("bar".into(), Command::Append(5)),
-        ]);
+        ];
+        let mut in_borrowed = Vec::<(&String, &Command)>::new();
+        for tup in in_owned.iter() {
+            in_borrowed.push((&tup.0, &tup.1));
+        }
+        let output = transformer(in_borrowed);
         assert_eq!(output[0], "HELLO");
         assert_eq!(output[1], "all roads lead to rome!");
         assert_eq!(output[2], "foobar");
         assert_eq!(output[3], "barbarbarbarbarbar");
     }
 }
+
+/*
+fn main() {
+
+    let in_owned = vec![
+        ("hello".into(), Command::Uppercase),
+        (" all roads lead to rome! ".into(), Command::Trim),
+        ("foo".into(), Command::Append(1)),
+        ("bar".into(), Command::Append(5)),
+    ];
+    let mut in_borrowed = Vec::<(&String, &Command)>::new();
+    for tup in in_owned.iter() {
+        in_borrowed.push((&tup.0, &tup.1));
+    }
+
+    let output = transformer(in_borrowed);
+    for i in 0..4 {
+        match &output[i] {
+            Cow::Borrowed(s) => println!("borrowed {}",s),
+            Cow::Owned(s) => println!("owned {}", s),
+        }
+    }
+
+}
+*/
