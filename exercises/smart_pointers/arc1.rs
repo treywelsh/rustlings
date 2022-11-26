@@ -18,25 +18,36 @@
 // where the second TODO comment is. Try not to create any copies of the `numbers` Vec!
 // Execute `rustlings hint arc1` or use the `hint` watch subcommand for a hint.
 
-// I AM NOT DONE
 
 #![forbid(unused_imports)] // Do not change this, (or the next) line.
-use std::sync::Arc;
+use std::sync::{Arc, mpsc::{Sender, Receiver, self}};
 use std::thread;
 
 fn main() {
-    let numbers: Vec<_> = (0..100u32).collect();
-    let shared_numbers = // TODO
+    let n: u64 = 123;
+    let numbers: Vec<_> = (0..=n).collect();
+    let shared_numbers = Arc::new(numbers);
     let mut joinhandles = Vec::new();
 
+    let (tx, rx): (Sender<u64>, Receiver<u64>) = mpsc::channel();
+
     for offset in 0..8 {
-        let child_numbers = // TODO
+        let child_numbers = shared_numbers.clone();
+        let thread_tx = tx.clone();
         joinhandles.push(thread::spawn(move || {
-            let sum: u32 = child_numbers.iter().filter(|&&n| n % 8 == offset).sum();
+            let sum = child_numbers.iter().filter(|n| *n % 8 == offset).sum();
+            thread_tx.send(sum);
             println!("Sum of offset {} is {}", offset, sum);
         }));
     }
     for handle in joinhandles.into_iter() {
         handle.join().unwrap();
     }
+    let mut tot: u64 = 0;
+    for _ in 0..8 {
+        tot += rx.recv().unwrap();
+    }
+    assert_eq!(tot, n*(n+1)/2);
+    println!("total: {}", tot);
+
 }
